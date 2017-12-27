@@ -197,6 +197,7 @@ def read_dataset(file_path, prompt_id, maxlen, vocab, tokenize_text, to_lower, s
 	logger.info('  <num> hit rate: %.2f%%, <unk> hit rate: %.2f%%' % (100*num_hit/total, 100*unk_hit/total))
 	return data_x, data_y, prompt_ids, maxlen_x
 
+#get the train_data, valid_data, test_data and return 中的最后一个数1 为 num_outputs(标量)
 def get_data(paths, prompt_id, vocab_size, maxlen, tokenize_text=True, to_lower=True, sort_by_len=False, vocab_path=None, score_index=6):
 	train_path, dev_path, test_path = paths[0], paths[1], paths[2]
 	
