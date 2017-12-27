@@ -8,9 +8,10 @@ import numpy as np
 import pickle as pk
 
 logger = logging.getLogger(__name__)
-num_regex = re.compile('^[+-]?[0-9]+\.?[0-9]*$')
+num_regex = re.compile('^[+-]?[0-9]+\.?[0-9]*$')#number re
 ref_scores_dtype = 'int32'
 
+#0 means all prompt
 asap_ranges = {
 	0: (0, 60),
 	1: (2,12),
@@ -25,10 +26,10 @@ asap_ranges = {
 
 def get_ref_dtype():
 	return ref_scores_dtype
-
+#分词
 def tokenize(string):
-	tokens = nltk.word_tokenize(string)
-	for index, token in enumerate(tokens):
+	tokens = nltk.word_tokenize(string)   #only for sentence, if paragraph, sentence_tokenize firstly（其实无所谓。。。）
+	for index, token in enumerate(tokens):# remove email add(@后面的)   ps:最好不要在循环中插入删除等动态操作 
 		if token == '@' and (index+1) < len(tokens):
 			tokens[index+1] = '@' + re.sub('[0-9]+.*', '', tokens[index+1])
 			tokens.pop(index)
@@ -37,12 +38,13 @@ def tokenize(string):
 def get_score_range(prompt_id):
 	return asap_ranges[prompt_id]
 
+#归一化
 def get_model_friendly_scores(scores_array, prompt_id_array):
 	arg_type = type(prompt_id_array)
 	assert arg_type in {int, np.ndarray}
 	if arg_type is int:
 		low, high = asap_ranges[prompt_id_array]
-		scores_array = (scores_array - low) / (high - low)
+		scores_array = (scores_array - low) / (high - low)  #归一化
 	else:
 		assert scores_array.shape[0] == prompt_id_array.shape[0]
 		dim = scores_array.shape[0]
@@ -53,7 +55,7 @@ def get_model_friendly_scores(scores_array, prompt_id_array):
 		scores_array = (scores_array - low) / (high - low)
 	assert np.all(scores_array >= 0) and np.all(scores_array <= 1)
 	return scores_array
-
+#复原分数（归一化的逆操作）
 def convert_to_dataset_friendly_scores(scores_array, prompt_id_array):
 	arg_type = type(prompt_id_array)
 	assert arg_type in {int, np.ndarray}
@@ -71,22 +73,23 @@ def convert_to_dataset_friendly_scores(scores_array, prompt_id_array):
 		scores_array = scores_array * (high - low) + low
 	return scores_array
 
+#判断token是否为数字
 def is_number(token):
 	return bool(num_regex.match(token))
-
+#加载词汇表（从pickle文件中）
 def load_vocab(vocab_path):
 	logger.info('Loading vocabulary from: ' + vocab_path)
 	with open(vocab_path, 'rb') as vocab_file:
 		vocab = pk.load(vocab_file)
 	return vocab
-
+#创建词表（字典--> {'term': index}）
 def create_vocab(file_path, prompt_id, maxlen, vocab_size, tokenize_text, to_lower):
 	logger.info('Creating vocabulary from: ' + file_path)
 	if maxlen > 0:
 		logger.info('  Removing sequences with more than ' + str(maxlen) + ' words')
 	total_words, unique_words = 0, 0
 	word_freqs = {}
-	with codecs.open(file_path, mode='r', encoding='UTF8') as input_file:
+	with codecs.open(file_path, mode='r', encoding='UTF8') as input_file:	#文件编码为utf8
 		input_file.next()
 		for line in input_file:
 			tokens = line.strip().split('\t')
@@ -111,28 +114,31 @@ def create_vocab(file_path, prompt_id, maxlen, vocab_size, tokenize_text, to_low
 						word_freqs[word] = 1
 					total_words += 1
 	logger.info('  %i total words, %i unique words' % (total_words, unique_words))
-	import operator
+	import operator	
+	#根据词频降序排列
 	sorted_word_freqs = sorted(word_freqs.items(), key=operator.itemgetter(1), reverse=True)
 	if vocab_size <= 0:
-		# Choose vocab size automatically by removing all singletons
+		# Choose vocab size automatically by removing all singletons（只出现一次的词）
 		vocab_size = 0
 		for word, freq in sorted_word_freqs:
 			if freq > 1:
 				vocab_size += 1
+	#扩充字典（zero-shot）
 	vocab = {'<pad>':0, '<unk>':1, '<num>':2}
 	vcb_len = len(vocab)
 	index = vcb_len
-	for word, _ in sorted_word_freqs[:vocab_size - vcb_len]:
+	for word, _ in sorted_word_freqs[:vocab_size - vcb_len]:   # -vcb_len 保证为vocab_size为参数指定的size（可有可无，depends后续怎么处理）
 		vocab[word] = index
 		index += 1
 	return vocab
 
+#get the essays_list and essays_ids  ,both are list
 def read_essays(file_path, prompt_id):
 	logger.info('Reading tsv from: ' + file_path)
 	essays_list = []
 	essays_ids = []
 	with codecs.open(file_path, mode='r', encoding='UTF8') as input_file:
-		input_file.next()
+		input_file.next()	#skip the header
 		for line in input_file:
 			tokens = line.strip().split('\t')
 			if int(tokens[1]) == prompt_id or prompt_id <= 0:
@@ -140,6 +146,7 @@ def read_essays(file_path, prompt_id):
 				essays_ids.append(int(tokens[0]))
 	return essays_list, essays_ids
 
+#get the data_x(list of list，不等长，最内层list为作文对应的token2index序列), data_y(list of socores), prompt_ids(list), maxlen_x(文章最大的长度)
 def read_dataset(file_path, prompt_id, maxlen, vocab, tokenize_text, to_lower, score_index=6, char_level=False):
 	logger.info('Reading dataset from: ' + file_path)
 	if maxlen > 0:
@@ -193,7 +200,8 @@ def read_dataset(file_path, prompt_id, maxlen, vocab, tokenize_text, to_lower, s
 def get_data(paths, prompt_id, vocab_size, maxlen, tokenize_text=True, to_lower=True, sort_by_len=False, vocab_path=None, score_index=6):
 	train_path, dev_path, test_path = paths[0], paths[1], paths[2]
 	
-	if not vocab_path:
+	#load the vocab 
+	if not vocab_path:    #only use train_data to create vocab 好么？
 		vocab = create_vocab(train_path, prompt_id, maxlen, vocab_size, tokenize_text, to_lower)
 		if len(vocab) < vocab_size:
 			logger.warning('The vocabualry includes only %i words (less than %i)' % (len(vocab), vocab_size))
