@@ -47,9 +47,10 @@ U.mkdir_p(out_dir + '/preds')
 U.set_logger(out_dir)
 U.print_args(args)
 
+#reg-->regression;  p-->pooling;  b-->bidirectional
 assert args.model_type in {'reg', 'regp', 'breg', 'bregp'}
 assert args.algorithm in {'rmsprop', 'sgd', 'adagrad', 'adadelta', 'adam', 'adamax'}
-assert args.loss in {'mse', 'mae'}
+assert args.loss in {'mse', 'mae'}# 均方误差；；绝对误差
 assert args.recurrent_unit in {'lstm', 'gru', 'simple'}
 assert args.aggregation in {'mot', 'attsum', 'attmean'}
 
@@ -80,10 +81,11 @@ with open(out_dir + '/vocab.pkl', 'wb') as vocab_file:
 if args.model_type in {'breg', 'bregp'}:
 	assert args.rnn_dim > 0
 	assert args.recurrent_unit == 'lstm'
+	#default padding=='pre',means 在前面补0
 	train_x = sequence.pad_sequences(train_x, maxlen=overal_maxlen)
 	dev_x = sequence.pad_sequences(dev_x, maxlen=overal_maxlen)
 	test_x = sequence.pad_sequences(test_x, maxlen=overal_maxlen)
-else:
+else:	#默认为最长序列的长度，即分别的timesteps为train，dev，和test的最长序列长度；；；为什么要在前面补0？不在最后补
 	train_x = sequence.pad_sequences(train_x)
 	dev_x = sequence.pad_sequences(dev_x)
 	test_x = sequence.pad_sequences(test_x)
