@@ -27,6 +27,7 @@ def create_dataset(lines, output_fname):
 	for line in lines:
 		f_write.write(line.decode('cp1252', 'replace').encode('utf-8'))
 
+#dataset-->{id: original_data}
 def collect_dataset(input_file):
 	dataset = dict()
 	lcount = 0
