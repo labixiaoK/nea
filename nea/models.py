@@ -36,23 +36,29 @@ def create_model(args, initial_mean_value, overal_maxlen, vocab):
 	if args.model_type == 'cls':
 		raise NotImplementedError
 	
+	#embedding-->cnn-->rnn(return_sequence=false)-->dropout-->dense-->sigmoid
 	elif args.model_type == 'reg':
 		logger.info('Building a REGRESSION model')
 		model = Sequential()
+		#确定是否将输入中的‘0’看作是应该被忽略的‘填充’（padding）值设置为True的话，模型中后续的层必须都支持masking，否则会抛出异常。
+		#如果该值为True，则下标0在字典中不可用，input_dim应设置为|vocabulary| + 1
+		#此处，input层省略是因为input_length有默认值
 		model.add(Embedding(args.vocab_size, args.emb_dim, mask_zero=True))
-		if args.cnn_dim > 0:
+		if args.cnn_dim > 0:	#border_mode==padding?? subsample_length==pooling?? where is the activation??
 			model.add(Conv1DWithMasking(nb_filter=args.cnn_dim, filter_length=args.cnn_window_size, border_mode=cnn_border_mode, subsample_length=1))
-		if args.rnn_dim > 0:
+		if args.rnn_dim > 0:	#return_sequence 只返回最后一个 state
 			model.add(RNN(args.rnn_dim, return_sequences=False, dropout_W=dropout_W, dropout_U=dropout_U))
 		if args.dropout_prob > 0:
 			model.add(Dropout(args.dropout_prob))
 		model.add(Dense(num_outputs))
-		if not args.skip_init_bias:
+		if not args.skip_init_bias:     #初始化最后一层layer的bias
 			bias_value = (np.log(initial_mean_value) - np.log(1 - initial_mean_value)).astype(K.floatx())
 			model.layers[-1].b.set_value(bias_value)
-		model.add(Activation('sigmoid'))
+		model.add(Activation('sigmoid'))	#输出区间为（0，1）
+		#设置model的embed层的序号，方便后续用预训练词向量的初始化，model的所有层都存在  model.layers 里
 		model.emb_index = 0
 	
+	#embedding-->cnn-->rnn(return_sequence=true)-->dropout-->MeanoverTime or Attention(mean or sum)-->Dense-->sigmoid
 	elif args.model_type == 'regp':
 		logger.info('Building a REGRESSION model with POOLING')
 		model = Sequential()
@@ -73,11 +79,11 @@ def create_model(args, initial_mean_value, overal_maxlen, vocab):
 			model.layers[-1].b.set_value(bias_value)
 		model.add(Activation('sigmoid'))
 		model.emb_index = 0
-	
+	#embedding-->cnn-->birnn(return_sequence=false)-->dropout-->merge(concat the forRnn&backRnn)-->dense-->sigmoid
 	elif args.model_type == 'breg':
 		logger.info('Building a BIDIRECTIONAL REGRESSION model')
 		from keras.layers import Dense, Dropout, Embedding, LSTM, Input, merge
-		model = Sequential()
+		model = Sequential()	#这句应该是多余的
 		sequence = Input(shape=(overal_maxlen,), dtype='int32')
 		output = Embedding(args.vocab_size, args.emb_dim, mask_zero=True)(sequence)
 		if args.cnn_dim > 0:
@@ -95,11 +101,11 @@ def create_model(args, initial_mean_value, overal_maxlen, vocab):
 		score = Activation('sigmoid')(densed)
 		model = Model(input=sequence, output=score)
 		model.emb_index = 1
-	
+	#embedding-->cnn-->biRnn(return_sequence=true)-->dropout-->meanOverTime-->merge(concat)-->dense-->sigmoid
 	elif args.model_type == 'bregp':
 		logger.info('Building a BIDIRECTIONAL REGRESSION model with POOLING')
 		from keras.layers import Dense, Dropout, Embedding, LSTM, Input, merge
-		model = Sequential()
+		model = Sequential()  #多余的
 		sequence = Input(shape=(overal_maxlen,), dtype='int32')
 		output = Embedding(args.vocab_size, args.emb_dim, mask_zero=True)(sequence)
 		if args.cnn_dim > 0:
