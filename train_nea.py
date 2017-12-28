@@ -203,7 +203,7 @@ total_eval_time = 0
 
 for ii in range(args.epochs):
 	# Training
-	t0 = time()
+	t0 = time()						#nb_epoch??
 	train_history = model.fit(train_x, train_y, batch_size=args.batch_size, nb_epoch=1, verbose=0)
 	tr_time = time() - t0
 	total_train_time += tr_time
