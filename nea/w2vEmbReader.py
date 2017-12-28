@@ -4,6 +4,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
+#emb文件格式：第一行为（vocab_size, emb_dim）,之后为‘a 0.4 ..........’第一个为token自己
 class W2VEmbReader:
 	def __init__(self, emb_path, emb_dim=None):
 		logger.info('Loading embeddings from: ' + emb_path)
@@ -30,6 +31,7 @@ class W2VEmbReader:
 					tokens = line.split()
 					assert len(tokens) == self.emb_dim + 1, 'The number of dimensions does not match the header info'
 					word = tokens[0]
+					#字符串的列表，，map(float, tokens[1:])???
 					vec = tokens[1:]
 					self.embeddings[word] = vec
 					counter += 1
@@ -59,6 +61,7 @@ class W2VEmbReader:
 		except KeyError:
 			return None
 	
+	#为给出的字典给出相应的embed matrix
 	def get_emb_matrix_given_vocab(self, vocab, emb_matrix):
 		counter = 0.
 		for word, index in vocab.iteritems():
