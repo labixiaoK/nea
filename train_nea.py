@@ -105,6 +105,7 @@ if args.prompt_id:
 	dev_pmt = np.array(dev_pmt, dtype='int32')
 	test_pmt = np.array(test_pmt, dtype='int32')
 
+#记录分数的分布情况（各分数出现次数）
 bincounts, mfs_list = U.bincounts(train_y)
 with open('%s/bincounts.txt' % out_dir, 'w') as output_file:
 	for bincount in bincounts:
@@ -129,10 +130,12 @@ logger.info('  test_y shape:  ' + str(test_y.shape))
 
 logger.info('  train_y mean: %s, stdev: %s, MFC: %s' % (str(train_mean), str(train_std), str(mfs_list)))
 
+#保存分数的原始数据类型
 # We need the dev and test sets in the original scale for evaluation
 dev_y_org = dev_y.astype(dataset.get_ref_dtype())
 test_y_org = test_y.astype(dataset.get_ref_dtype())
 
+#归一化
 # Convert scores to boundary of [0 1] for training and evaluation (loss calculation)
 train_y = dataset.get_model_friendly_scores(train_y, train_pmt)
 dev_y = dataset.get_model_friendly_scores(dev_y, dev_pmt)
@@ -152,6 +155,7 @@ optimizer = get_optimizer(args)
 
 from nea.models import create_model
 
+#loss和metric交叉验证可靠性？？？
 if args.loss == 'mse':
 	loss = 'mean_squared_error'
 	metric = 'mean_absolute_error'
@@ -159,6 +163,7 @@ else:
 	loss = 'mean_absolute_error'
 	metric = 'mean_squared_error'
 
+#第2个参数为-->初始的y均值
 model = create_model(args, train_y.mean(axis=0), overal_maxlen, vocab)
 model.compile(loss=loss, optimizer=optimizer, metrics=[metric])
 
