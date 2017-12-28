@@ -35,6 +35,8 @@ def mkdir_p(path):
 def get_root_dir():
 	return os.path.dirname(sys.argv[0])
 
+#counters -->字典的列表；每个字典为各分数的频数；列表size为分数的种类
+#mfe-->出现字数最多的那个分数
 def bincounts(array):
 	num_rows = array.shape[0]
 	if array.ndim > 1:
