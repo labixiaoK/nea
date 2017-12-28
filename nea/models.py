@@ -29,9 +29,9 @@ def create_model(args, initial_mean_value, overal_maxlen, vocab):
 	dropout_W = 0.5		# default=0.5
 	dropout_U = 0.1		# default=0.1
 	cnn_border_mode='same'
-	if initial_mean_value.ndim == 0:
+	if initial_mean_value.ndim == 0:	#expand the dims
 		initial_mean_value = np.expand_dims(initial_mean_value, axis=1)
-	num_outputs = len(initial_mean_value)
+	num_outputs = len(initial_mean_value)	#预测的分数种类数
 	
 	if args.model_type == 'cls':
 		raise NotImplementedError
